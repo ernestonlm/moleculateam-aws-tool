@@ -2,6 +2,7 @@ package com.moleculateam.aws.dynamodb;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
@@ -20,6 +21,8 @@ import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
+import com.moleculateam.aws.dynamodb.Attribute.TYPE;
+
 
 /**
  * The GeneralDB class provides a tool to create a connection with the DynamoDB service and access 2 fixed tables used to represent multiple tables.
@@ -34,6 +37,32 @@ import com.amazonaws.services.dynamodbv2.model.ScanResult;
 public class GeneralDB {
 	private AmazonDynamoDB dynamoDB;
 	private String env;
+	
+	/**
+	 * Constructor used to create a connection with the default aws profile, the environment defined in APIStatus and the aws Region defined in APIStatus
+	 */
+	public GeneralDB() {
+		if (dynamoDB == null) {
+			dynamoDB = AmazonDynamoDBClientBuilder.standard()
+					.withRegion(APIStatus.region)
+					.build();  
+		}
+		// Set environment from static APIStatus
+		env = APIStatus.getEnv();
+	}
+	
+	/**
+	 * Constructor used to create a connection with the default aws profile, the region defined in APIStatus and the environment specified in env
+	 */
+	public GeneralDB(String env) {
+		if (dynamoDB == null) {
+			dynamoDB = AmazonDynamoDBClientBuilder.standard()
+					.withRegion(APIStatus.region)
+					.build();  
+		}
+		// Set environment from static APIStatus
+		this.env = env;
+	}
 	
 	/**
 	 * Constructor used to create a connection with the default aws profile and the environment defined in APIStatus
@@ -241,6 +270,25 @@ public class GeneralDB {
 	}
 	
 	/**
+	 * delete from the table tableName all the items with the primary key specified in pk 
+	 * 
+	 * @param tableName Name of the table where the items are going to be deleted
+	 * @param pk Primary key
+	 */
+	public void deleteItems(String tableName, String pk) {
+		DynamoDB dynamoDBinst = new DynamoDB(dynamoDB);
+		String tblName = env+"generaldk";
+		Table tabla = dynamoDBinst.getTable(tblName);
+		
+		// The items to delete are filtered by the condition generalpk == tableName+'-'+pk
+		DeleteItemSpec deleteItemSpec = new DeleteItemSpec().withConditionExpression("generalpk = :usucod");
+		ValueMap values = new ValueMap()
+		        .withString(":usucod", tableName+'-'+pk);
+		deleteItemSpec.withValueMap(values);
+		tabla.deleteItem(deleteItemSpec);
+	}
+	
+	/**
 	 * Get attribute from record with primary key specified from the table specified. When the item is not found the method return null.
 	 * 
 	 * @param tableName Table where to look for the PK
@@ -325,6 +373,49 @@ public class GeneralDB {
 			}
 		}
 		return null;
-	}	
+	}
+	
+	/**
+	 * Query all records of the composed key table tableName with primary key equals to pk and return the attributes specified in att
+	 * 
+	 * @param tableName Table where to filter for PK
+	 * @param pk primary key (identifier) of the records to query
+	 * @param att Attribute to look for and return
+	 */
+	public Collection<Object> getAttributes(String tableName, String pk, Attribute att) {
+		Collection<Object> col = new LinkedList<Object>();
+		DynamoDB dynamoDBinst = new DynamoDB(dynamoDB);
+		String tblName = env+"generaldk";
+		Table tabla = dynamoDBinst.getTable(tblName);
+		
+		// Items are filtered using the condition pk == tableName+'-'+pk
+		QuerySpec querySpec = new QuerySpec().withKeyConditionExpression("generalpk = :usucod");
+		ValueMap values = new ValueMap()				
+        .withString(":usucod", tableName+"-"+pk);
+		querySpec = querySpec.withValueMap(values);
+		ItemCollection<QueryOutcome> items = tabla.query(querySpec);
+		Iterator<Item> iterator = items.iterator();
+		
+		while (iterator.hasNext()) {
+			if (att.Type == TYPE.JSON) {
+				String json = iterator.next().getJSON(att.name);
+				// Replace " " for "" so empty values are recognized by the "" value
+				json = json.replace("\" \"","\"\"");
+				col.add(json);
+			}
+			
+			if (att.Type == TYPE.CHAR) {
+				String json = iterator.next().getString(att.name);
+				col.add(json);
+			}
+			if (att.Type == TYPE.INT) {
+				col.add(iterator.next().getInt(att.name));
+			}
+			if (att.Type == TYPE.SHORT) {
+				col.add(iterator.next().getShort(att.name));
+			}
+		}
+		return col;
+	}
 	
 }

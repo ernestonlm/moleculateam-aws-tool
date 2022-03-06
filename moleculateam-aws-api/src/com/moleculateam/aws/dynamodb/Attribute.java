@@ -14,11 +14,24 @@ public class Attribute {
 	public Object value;
 	public TYPE Type;
 	
+	/*
+	 * Constructor used to specify attribute name, type and value to add/modify
+	 */
 	public Attribute(String name, Attribute.TYPE type, Object value) {
 		super();
 		this.name = name;
 		this.Type = type;
 		this.value = value;
+	}
+	
+	/*
+	 * Constructor used to specify attribute name and type to fetch
+	 */
+	public Attribute(String name, TYPE type) {
+		super();
+		this.name = name;
+		this.Type = type;
+		this.value = null;
 	}
 
 	@Override
