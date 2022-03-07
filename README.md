@@ -152,6 +152,36 @@ As a result, the GeneralSK have the following records:
 </tbody>
 </table>
 
+## Environments
+
+Another feature included is the use of environments. The motivation of environments is to allow having multiple versions of the DynamoDB tables to be used from different execution environments (f.e TEST, PREPROD, DESA) in a transparent way. If no environment is defined then the GeneralSK and GeneralDB tables will be used. If an environment named "TEST-" is configured, then the GeneralDB instances will use the DynamoDB tables TEST-GeneralSK and TEST-GeneralDK tables.
+
+The environment can be set in 3 ways:
+
+1) Using the java property com.moleculateam.aws.env:
+
+```bash
+..-Dcom.moleculateam.aws.env="TEST-"...
+```
+
+2) Setting the static APIStatus field "env"
+
+```java
+APIStatus.env = "TEST-"
+```
+
+3) Using the GeneralDB constructor
+
+```java
+GeneralDB target = new GeneralDB("TEST-");
+```
+Any GeneralDB instance will define the environment to use following these rules in order:
+
+  - If Environment is defined using GeneralDB constructor it will be the environment used by the instance.
+  - If Environment is NOT defined using GeneralDB constructor then, the APIStatus value will be used
+  - If Environment is NOT defined using APIStatus then, the java property will be used
+  - If Environment is NOT defined using the java property then Environment is assumed to be empty so GeneralSK and GeneralDB tables will be used.
+
 ## Usage
 
 The [DynamoDBExamples.java] provides a series of examples to understand how to use de API.
